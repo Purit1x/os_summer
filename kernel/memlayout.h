@@ -1,5 +1,5 @@
 // Physical memory layout
-
+// #define LAB_PGTBL 1
 // qemu -machine virt is set up like this,
 // based on qemu's hw/riscv/virt.c:
 //
@@ -70,10 +70,10 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
-#ifdef LAB_PGTBL
+
 #define USYSCALL (TRAPFRAME - PGSIZE)
 
 struct usyscall {
   int pid;  // Process ID
 };
-#endif
+

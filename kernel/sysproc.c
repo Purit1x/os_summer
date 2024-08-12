@@ -11,7 +11,7 @@ uint64
 sys_exit(void)
 {
   int n;
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   exit(n);
   return 0;  // not reached
@@ -33,7 +33,7 @@ uint64
 sys_wait(void)
 {
   uint64 p;
-  if(argaddr(0, &p) < 0)
+  if (argaddr(0, &p) < 0)
     return -1;
   return wait(p);
 }
@@ -44,11 +44,11 @@ sys_sbrk(void)
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
-  
+
   addr = myproc()->sz;
-  if(growproc(n) < 0)
+  if (growproc(n) < 0)
     return -1;
   return addr;
 }
@@ -60,12 +60,12 @@ sys_sleep(void)
   uint ticks0;
 
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(myproc()->killed){
+  while (ticks - ticks0 < n) {
+    if (myproc()->killed) {
       release(&tickslock);
       return -1;
     }
@@ -76,21 +76,12 @@ sys_sleep(void)
 }
 
 
-#ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
-{
-  // lab pgtbl: your code here.
-  return 0;
-}
-#endif
-
 uint64
 sys_kill(void)
 {
   int pid;
 
-  if(argint(0, &pid) < 0)
+  if (argint(0, &pid) < 0)
     return -1;
   return kill(pid);
 }
@@ -106,4 +97,36 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int
+sys_pgaccess(void)
+{
+  struct proc* p = myproc();
+  uint64 usrpg_ptr;  // 待检查页表起始指针
+  int npage;  // 待检查页表个数
+  uint64 useraddr;  // 要写入的用户内存地址
+  argaddr(0, &usrpg_ptr);
+  argint(1, &npage);
+  argaddr(2, &useraddr);
+  if (npage > 64)  // 查找的页数不高于64
+    return -1;
+  uint64 bitmap = 0;
+  uint64 mask = 1;
+  uint64 complement = PTE_A;
+  complement = ~complement;
+  int count = 0;
+
+  for (uint64 page = usrpg_ptr;page < usrpg_ptr + npage * PGSIZE;page += PGSIZE) {
+    pte_t* pte = walk(p->pagetable, page, 0);
+    if (*pte & PTE_A) {
+      bitmap = bitmap | (mask << count);
+      *pte = (*pte) & complement;
+    }
+    count++;
+  }
+  if (copyout(p->pagetable, useraddr, (char*)&bitmap, sizeof(bitmap)) < 0)
+    return -1;
+
+  return 0;
 }
